@@ -2,7 +2,7 @@ project('mpv',
         'c',
         license: ['GPL2+', 'LGPL2.1+'],
         version: files('./MPV_VERSION'),
-        meson_version: '>=1.3.0',
+        meson_version: '>=0.62.0',
         default_options: [
             'backend_max_links=16',
             'buildtype=debugoptimized',
@@ -595,8 +595,7 @@ sources += [ebml_defs, ebml_types]
 
 subdir('common')
 subdir('etc')
-subdir('player/javascript')
-subdir('player/lua')
+subdir('player')
 subdir('sub')
 
 if darwin
@@ -1677,9 +1676,20 @@ if rst2pdf.found()
 endif
 
 
+if meson.version().version_compare('>= 1.1.0')
+    configuration = meson.build_options()
+else
+    # Arbitrary hardcoded things to pass if the meson version is too
+    # old to have the build_options method.
+    configuration = 'meson configure build ' + '-Dprefix=' + get_option('prefix') + \
+                    ' -Dbuildtype=' + get_option('buildtype') + \
+                    ' -Doptimization=' + get_option('optimization')
+endif
+
+
 # Set config.h
 conf_data = configuration_data()
-conf_data.set_quoted('CONFIGURATION', meson.build_options())
+conf_data.set_quoted('CONFIGURATION', configuration)
 conf_data.set_quoted('DEFAULT_DVD_DEVICE', dvd_device)
 conf_data.set_quoted('DEFAULT_CDROM_DEVICE', cd_device)
 
@@ -1795,7 +1805,8 @@ if get_option('cplayer')
     mpv = executable('mpv', main_fn_source, objects: libmpv.extract_all_objects(recursive: true), dependencies: dependencies,
                      win_subsystem: 'windows', install: true)
 
-    if win32
+    # Older meson versions generate this in the player subdirectory.
+    if win32 and meson.version().version_compare('>= 1.3.0')
         wrapper_sources= 'osdep/win32-console-wrapper.c'
         executable('mpv', wrapper_sources, c_args: '-municode', link_args: '-municode',
                    name_suffix: 'com', install: true)
